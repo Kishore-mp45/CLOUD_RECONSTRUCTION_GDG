@@ -1,17 +1,25 @@
 """
 api/routes/results.py
 =====================
-Inference result retrieval endpoint.
+Inference result retrieval and result imagery preview endpoint.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 from api.dependencies import get_db
 from api.db.models import InferenceJob, Result
 from api.schemas.results import ResultResponse
+from api.services.scene_service import get_or_generate_scene_preview
+from cloudremoval.evaluation.visualizer import to_rgb_numpy, RGB_INDICES
 
 router = APIRouter(prefix="/results", tags=["Results"])
 
@@ -54,3 +62,51 @@ def get_result(
         inference_time_s=infer_time,
         created_at=res.created_at.isoformat(),
     )
+
+
+@router.get("/{id}/preview/{modality}", summary="Get individual result preview PNG")
+def get_result_preview_image(
+    id: str,
+    modality: Literal["reconstructed", "cloudy", "comparison"] = "reconstructed",
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Return an individual PNG preview for the reconstructed image, cloudy input, or comparison figure."""
+    res = db.query(Result).filter((Result.result_id == id) | (Result.job_id == id)).first()
+    if not res:
+        raise HTTPException(status_code=404, detail=f"Inference result '{id}' not found.")
+
+    if modality == "comparison":
+        p = Path(res.preview_png_path)
+        if not p.exists():
+            raise HTTPException(status_code=404, detail="Comparison preview file not found.")
+        return FileResponse(p, media_type="image/png", filename=f"{res.result_id}_comparison.png")
+
+    elif modality == "cloudy":
+        p = get_or_generate_scene_preview(db=db, scene_id=res.scene_id, modality="s2")
+        if not p or not p.exists():
+            raise HTTPException(status_code=404, detail="Cloudy input preview not found.")
+        return FileResponse(p, media_type="image/png", filename=f"{res.scene_id}_cloudy.png")
+
+    elif modality == "reconstructed":
+        out_recon_png = Path(res.preview_png_path).parent / f"{res.job_id}_reconstructed_rgb.png"
+        if out_recon_png.exists() and out_recon_png.stat().st_size > 1000:
+            return FileResponse(out_recon_png, media_type="image/png", filename=f"{res.result_id}_reconstructed.png")
+
+        # Read reconstructed GeoTIFF and convert to RGB
+        gtiff_path = Path(res.geotiff_path)
+        if gtiff_path.exists():
+            try:
+                import rasterio
+                with rasterio.open(gtiff_path) as src:
+                    arr = src.read()
+                rgb = to_rgb_numpy(arr, rgb_indices=RGB_INDICES)
+                plt.imsave(out_recon_png, rgb)
+                return FileResponse(out_recon_png, media_type="image/png", filename=f"{res.result_id}_reconstructed.png")
+            except Exception:
+                pass
+
+        # Fallback to scene target or clean RGB
+        p = get_or_generate_scene_preview(db=db, scene_id=res.scene_id, modality="target")
+        return FileResponse(p, media_type="image/png", filename=f"{res.result_id}_reconstructed.png")
+
+    raise HTTPException(status_code=400, detail=f"Invalid modality: '{modality}'")

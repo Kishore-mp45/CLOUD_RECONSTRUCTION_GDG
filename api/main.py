@@ -1,7 +1,7 @@
 """
 api/main.py
 ===========
-FastAPI application entry point for ALLClear Cloud Removal System (Phase 8).
+FastAPI application entry point for ALLClear Cloud Removal System (Phase 8 & 10).
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import torch
 
 from api.db.database import init_db, SessionLocal
@@ -87,7 +88,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # Enable CORS for future frontend integration (Phase 9)
+    # Enable CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -104,6 +105,11 @@ def create_app() -> FastAPI:
     app.include_router(metrics_router)
     app.include_router(models_router)
     app.include_router(downloads_router)
+
+    # Mount Static Frontend
+    frontend_dir = _PROJECT_ROOT / "frontend"
+    frontend_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 
     return app
 

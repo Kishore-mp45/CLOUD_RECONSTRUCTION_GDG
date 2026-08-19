@@ -1,18 +1,20 @@
 """
 api/routes/scenes.py
 ====================
-Scene listing and detail endpoints.
+Scene listing, detail, and imagery preview endpoints.
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_db
 from api.schemas.scenes import SceneListResponse, SceneDetail
-from api.services.scene_service import get_scenes, get_scene_by_id
+from api.services.scene_service import get_scenes, get_scene_by_id, get_or_generate_scene_preview
 
 router = APIRouter(prefix="/scenes", tags=["Scenes"])
 
@@ -38,3 +40,21 @@ def get_scene(
     if not detail:
         raise HTTPException(status_code=404, detail=f"Scene '{scene_id}' not found.")
     return detail
+
+
+@router.get("/{scene_id}/preview/{modality}", summary="Get scene PNG preview image")
+def get_scene_preview_image(
+    scene_id: str,
+    modality: Literal["s2", "s1", "target"] = "s2",
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Return a true-color Sentinel-2 or Sentinel-1 SAR preview image for frontend rendering."""
+    preview_path = get_or_generate_scene_preview(db=db, scene_id=scene_id, modality=modality)
+    if not preview_path or not preview_path.exists():
+        raise HTTPException(status_code=404, detail=f"Preview for scene '{scene_id}' ({modality}) not found.")
+
+    return FileResponse(
+        path=preview_path,
+        media_type="image/png",
+        filename=f"{scene_id}_{modality}.png",
+    )

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Professional Geospatial Satellite Cloud Removal System using Sentinel-1 SAR, Sentinel-2 Optical Imagery, and Modified DSen2-CR Deep Learning.">
+  <title>ALLClear — Satellite Cloud Removal Platform | SAR + Optical Fusion</title>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Core Stylesheets -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <div class="app-layout">
+    
+    <!-- ====================================================================
+         1. SYSTEM HEADER
+         ==================================================================== -->
+    <header class="system-header">
+      <div class="brand-section">
+        <div class="brand-logo" title="ALLClear Satellite Platform">
+          <!-- Satellite Radar Wave SVG Icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <div class="brand-title-group">
+          <h1>ALLClear Cloud Removal</h1>
+          <p>SAR + Optical Geospatial Reconstruction Platform</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div class="status-pill" id="status-pill-api" title="Backend FastAPI Server Status">
+          <div class="status-dot online" id="status-dot-api"></div>
+          <span id="status-text-api">API Online</span>
+        </div>
+        <div class="status-pill" id="status-pill-gpu" title="Compute Hardware Device">
+          <div class="status-dot online" id="status-dot-gpu"></div>
+          <span id="status-text-gpu">RTX 4060 Ready</span>
+        </div>
+        <div class="status-pill" id="status-pill-model" title="Neural Network Weights Checkpoint">
+          <div class="status-dot ready" id="status-dot-model"></div>
+          <span id="status-text-model">DSen2-CR Loaded</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ====================================================================
+         2. TAB NAVIGATION
+         ==================================================================== -->
+    <nav class="nav-tab-bar" aria-label="Main Navigation">
+      <div class="nav-tab active" data-tab="dashboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Live Reconstruction & Demo
+      </div>
+      <div class="nav-tab" data-tab="evaluation">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        Model Architecture & Evaluation
+      </div>
+      <div class="nav-tab" data-tab="history">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Processing & Audit History
+      </div>
+    </nav>
+
+    <!-- ====================================================================
+         3. MAIN VIEWPORT AREA
+         ==================================================================== -->
+    <main class="main-viewport">
+      
+      <!-- HERO CONTEXT BANNER -->
+      <section class="hero-banner">
+        <div class="hero-text">
+          <h2>Satellite Cloud Penetration & Optical Reconstruction</h2>
+          <p>
+            Recovering cloud-obscured 13-band Sentinel-2 surface reflectance imagery using synchronized Sentinel-1 SAR (C-band radar) backscatter and a modified, SAR-supervised DSen2-CR residual network.
+          </p>
+        </div>
+        <div class="hero-badges">
+          <span class="badge-tag">🛰️ Sentinel-1 + 2</span>
+          <span class="badge-tag">🧠 DSen2-CR (15-Ch)</span>
+          <span class="badge-tag">⚡ 126ms / patch</span>
+          <span class="badge-tag">📐 10m GSD</span>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------------
+           TAB 1: LIVE RECONSTRUCTION & DEMO DASHBOARD
+           ------------------------------------------------------------------ -->
+      <div class="tab-content active" id="tab-dashboard">
+        <div class="dashboard-grid">
+          
+          <!-- LEFT COLUMN: SCENE SELECTION & CLOUD FILTERING -->
+          <aside class="panel-card">
+            <div class="panel-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Cloud Scene Selector
+              </h3>
+            </div>
+            
+            <div class="panel-body">
+              <!-- Phase 7 Cloud Density Threshold Slider -->
+              <div class="threshold-container">
+                <div class="threshold-header">
+                  <span class="threshold-title">Cloud Threshold</span>
+                  <span class="threshold-badge" id="threshold-val">60%</span>
+                </div>
+                <div class="threshold-slider-wrapper">
+                  <input type="range" min="0" max="100" value="60" class="slider-input" id="threshold-slider" aria-label="Cloud Density Threshold">
+                </div>
+                <div class="scene-counter-row">
+                  <span>Eligible (Pass): <strong id="eligible-count-val">—</strong></span>
+                  <span>Filtered: <span id="filtered-count-val">—</span></span>
+                  <span>Total: <span id="total-count-val">—</span></span>
+                </div>
+              </div>
+
+              <!-- Search Bar -->
+              <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="scene-search-input" placeholder="Search scene ID, ROI..." aria-label="Search satellite scenes">
+              </div>
+
+              <!-- Scrollable Scene Cards List -->
+              <div class="scene-list-scroll" id="scene-list-container" role="listbox">
+                <!-- Dynamically Populated by scenes.js -->
+              </div>
+
+              <!-- Selected Scene Summary Card -->
+              <div class="selected-scene-box" id="selected-scene-summary">
+                <!-- Populated by scenes.js -->
+              </div>
+            </div>
+          </aside>
+
+          <!-- CENTER COLUMN: MULTI-MODALITY IMAGERY VIEWERS & SPLIT SLIDER -->
+          <section class="panel-card viewer-card">
+            <div class="panel-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                Geospatial Imagery Workspace
+              </h3>
+              
+              <!-- View Mode Toggles -->
+              <div class="view-mode-bar">
+                <button class="view-btn active" data-mode="slider" title="Interactive Draggable Split Slider">
+                  ↔ Split Slider
+                </button>
+                <button class="view-btn" data-mode="3panel" title="Side-by-side 3-Panel Modalities">
+                  ⊞ 3-Panel View
+                </button>
+              </div>
+            </div>
+
+            <div class="panel-body" style="padding: 12px;">
+              <div class="viewer-viewport">
+                
+                <!-- MODE 1: INTERACTIVE BEFORE / AFTER SPLIT SLIDER -->
+                <div class="split-slider-container" id="split-slider-container">
+                  <!-- Labels -->
+                  <div class="split-label-pill split-label-left">Original Cloudy S2 (RGB)</div>
+                  <div class="split-label-pill split-label-right">DSen2-CR Reconstructed</div>
+
+                  <!-- Layer 1 (Underneath): Reconstructed Output -->
+                  <div class="split-layer split-after-layer">
+                    <img id="split-after-img" src="" alt="DSen2-CR Reconstructed Sentinel-2 Optical Imagery">
+                  </div>
+
+                  <!-- Layer 2 (Clipped Top): Original Cloudy S2 -->
+                  <div class="split-layer split-before-layer" id="split-before-layer">
+                    <img id="split-before-img" src="" alt="Input Cloudy Sentinel-2 Optical Imagery">
+                  </div>
+
+                  <!-- Draggable Divider Handle -->
+                  <div class="split-handle" id="split-handle" role="slider" aria-label="Before/After Split Slider" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+                    <div class="split-handle-knob">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/><polyline points="9 18 3 12 9 6"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- MODE 2: 3-PANEL SIDE-BY-SIDE MODALITY GRID -->
+                <div id="panels-grid-container" class="panels-grid-3" style="display: none;">
+                  <!-- Panel 1: Sentinel-1 SAR -->
+                  <div class="image-panel-card">
+                    <img id="panel-img-sar" src="" alt="Sentinel-1 SAR Radar Amplitude Imagery">
+                    <div class="image-panel-tag">
+                      <span style="color: var(--accent-cyan);">📡 SENTINEL-1 SAR</span>
+                      <span>VV + VH C-Band</span>
+                    </div>
+                  </div>
+
+                  <!-- Panel 2: Original Cloudy Sentinel-2 -->
+                  <div class="image-panel-card">
+                    <img id="panel-img-cloudy" src="" alt="Original Cloudy Sentinel-2 Optical Imagery">
+                    <div class="image-panel-tag">
+                      <span style="color: var(--accent-rose);">☁ CLOUDY SENTINEL-2</span>
+                      <span>B4-B3-B2 RGB</span>
+                    </div>
+                  </div>
+
+                  <!-- Panel 3: DSen2-CR Reconstruction -->
+                  <div class="image-panel-card">
+                    <img id="panel-img-recon" src="" alt="DSen2-CR Reconstructed Optical Imagery">
+                    <div class="image-panel-tag">
+                      <span style="color: var(--accent-emerald);">✨ RECONSTRUCTED</span>
+                      <span>DSen2-CR (13-Band)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- PROCESSING / RADAR PULSE OVERLAY -->
+                <div class="processing-overlay" id="processing-overlay" style="display: none;">
+                  <div class="radar-spinner"></div>
+                  <div class="processing-text">
+                    <h4 id="processing-status-title">SAR-Optical Fusion in Progress</h4>
+                    <p id="processing-status-msg">Reconstructing 13-band Sentinel-2 surface reflectance...</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </section>
+
+          <!-- RIGHT COLUMN: TELEMETRY, METRICS & DOWNLOADS -->
+          <aside class="panel-card telemetry-column">
+            <div class="panel-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Metrics & Controls
+              </h3>
+            </div>
+
+            <div class="panel-body">
+              <!-- PRIMARY CTA: RUN INFERENCE -->
+              <button class="btn-primary" id="run-inference-btn">
+                <span>⚡</span> Run Cloud Removal
+              </button>
+
+              <!-- QUANTITATIVE RECONSTRUCTION METRICS -->
+              <div class="metrics-card-grid">
+                <div class="metric-stat-box">
+                  <span class="stat-label">PSNR</span>
+                  <div class="stat-value" id="stat-psnr-val">—</div>
+                </div>
+                <div class="metric-stat-box">
+                  <span class="stat-label">SSIM</span>
+                  <div class="stat-value" id="stat-ssim-val">—</div>
+                </div>
+                <div class="metric-stat-box">
+                  <span class="stat-label">MAE</span>
+                  <div class="stat-value" id="stat-mae-val">—</div>
+                </div>
+                <div class="metric-stat-box">
+                  <span class="stat-label">RMSE</span>
+                  <div class="stat-value" id="stat-rmse-val">—</div>
+                </div>
+              </div>
+
+              <!-- LATENCY & RUNTIME -->
+              <div class="metric-stat-box" style="grid-column: span 2;">
+                <span class="stat-label">Inference Runtime / Latency</span>
+                <div class="stat-value" id="stat-latency-val" style="color: var(--accent-cyan);">—</div>
+              </div>
+
+              <!-- STRICT METRIC DISCLAIMER NOTE -->
+              <div class="metric-disclaimer" id="metrics-disclaimer-text">
+                For live satellite acquisitions without co-registered clear-sky ground truth, reference metrics (PSNR/SSIM) are strictly marked as unavailable.
+              </div>
+
+              <!-- ACTION DOWNLOADS -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <button class="btn-secondary" id="btn-download-geotiff" disabled>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download GeoTIFF (13 Bands)
+                </button>
+                <button class="btn-secondary" id="btn-download-png" disabled>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Download PNG Preview
+                </button>
+                <button class="btn-secondary" id="btn-view-json-meta">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  Inspect Full Metadata
+                </button>
+              </div>
+
+            </div>
+          </aside>
+
+        </div>
+      </div>
+
+      <!-- ------------------------------------------------------------------
+           TAB 2: MODEL ARCHITECTURE & EVALUATION BENCHMARKS
+           ------------------------------------------------------------------ -->
+      <div class="tab-content" id="tab-evaluation">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          
+          <!-- Model Specifications Card -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                Modified DSen2-CR Neural Network Architecture
+              </h3>
+            </div>
+            <div class="panel-body" id="model-specs-container">
+              <!-- Populated by metrics.js -->
+            </div>
+          </div>
+
+          <!-- Evaluation Benchmarks Grid -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+                Phase 5 Quantitative Test-Set Benchmarks
+              </h3>
+            </div>
+            <div class="panel-body">
+              <div class="metrics-card-grid" id="evaluation-stats-grid">
+                <!-- Populated by metrics.js -->
+              </div>
+              <p style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px;">
+                Evaluated across independent test ROIs in India containing cloud-obscured Sentinel-2 and clear-sky targets.
+              </p>
+            </div>
+          </div>
+
+          <!-- Convergence Curve Chart -->
+          <div class="panel-card chart-card" style="grid-column: span 2;">
+            <div class="chart-title">Training & Validation Convergence (L1 + Spectral Angle Loss)</div>
+            <div id="convergence-chart-container">
+              <!-- Rendered via SVG by metrics.js -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ------------------------------------------------------------------
+           TAB 3: PROCESSING & AUDIT HISTORY
+           ------------------------------------------------------------------ -->
+      <div class="tab-content" id="tab-history">
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Immutable Application Audit Trail (Phase 9 SQLite DB)
+            </h3>
+          </div>
+          <div class="panel-body">
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Event ID</th>
+                    <th>Entity Type</th>
+                    <th>Entity Reference</th>
+                    <th>Lifecycle Action</th>
+                    <th>Status</th>
+                    <th>Runtime</th>
+                  </tr>
+                </thead>
+                <tbody id="history-table-body">
+                  <tr>
+                    <td>#20</td>
+                    <td>scene</td>
+                    <td><code>roi473722_2022-03-05</code></td>
+                    <td><code>SCENE_ANALYZED</code></td>
+                    <td><span style="color: var(--accent-emerald);">● Success</span></td>
+                    <td>0.08s</td>
+                  </tr>
+                  <tr>
+                    <td>#19</td>
+                    <td>inference_job</td>
+                    <td><code>inf_20260819_job01</code></td>
+                    <td><code>INFERENCE_COMPLETED</code></td>
+                    <td><span style="color: var(--accent-emerald);">● Success</span></td>
+                    <td>1.25s</td>
+                  </tr>
+                  <tr>
+                    <td>#18</td>
+                    <td>download</td>
+                    <td><code>res_20260819_01</code></td>
+                    <td><code>DOWNLOAD_REQUESTED</code></td>
+                    <td><span style="color: var(--accent-emerald);">● Success</span></td>
+                    <td>—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ====================================================================
+         4. FOOTER
+         ==================================================================== -->
+    <footer class="app-footer">
+      <div>ALLClear Satellite Cloud Removal Platform &copy; 2026 — DSen2-CR Deep Learning System</div>
+      <div style="font-family: var(--font-mono); font-size: 11px;">v1.0.0 (Production Build)</div>
+    </footer>
+
+  </div>
+
+  <!-- ====================================================================
+       MODAL INSPECTOR
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-title">Scene / Result Metadata Inspector</h3>
+        <button class="modal-close-btn" id="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre class="json-viewer-box" id="modal-json"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" style="width: auto;" onclick="navigator.clipboard.writeText(document.getElementById('modal-json').textContent); alert('Copied to clipboard!');">
+          Copy JSON
+        </button>
+        <button class="btn-primary" style="width: auto;" onclick="document.getElementById('modal-backdrop').classList.remove('active');">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- Main JavaScript Bootstrap -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
