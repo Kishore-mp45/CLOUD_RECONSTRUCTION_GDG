@@ -1,7 +1,7 @@
 """
 api/services/inference_service.py
 =================================
-Inference execution service reusing the Phase 6 GeospatialInferencePipeline.
+Inference execution service reusing the Phase 6 GeospatialInferencePipeline with Phase 9 ProcessingHistory logging.
 """
 
 from __future__ import annotations
@@ -14,9 +14,10 @@ from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
 
-from api.db.models import Scene, InferenceJob, Result, MetricRecord
+from api.db.models import Scene, InferenceJob, Result, MetricRecord, ProcessingHistory
 from api.schemas.inference import InferenceRequest, InferenceJobResponse
 from cloudremoval.config import get_settings
+from cloudremoval.database.repositories import ProcessingHistoryRepository
 from cloudremoval.inference.pipeline import GeospatialInferencePipeline
 
 log = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ def execute_inference_job(
 
     # 4. Generate Job ID & Initial DB Record
     job_id = f"inf_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    now_utc = datetime.now(tz=timezone.utc)
     job = InferenceJob(
         job_id=job_id,
         scene_id=scene.scene_id,
@@ -78,10 +80,22 @@ def execute_inference_job(
         checkpoint_name=settings.BEST_CHECKPOINT_NAME,
         tile_size=request.tile_size,
         overlap=request.overlap,
-        start_time=datetime.now(tz=timezone.utc),
+        batch_size=request.batch_size,
+        started_at=now_utc,
+        start_time=now_utc,
     )
     db.add(job)
     db.commit()
+
+    # Log INFERENCE_STARTED audit event
+    ProcessingHistoryRepository.log_event(
+        db=db,
+        entity_type="inference_job",
+        entity_id=job_id,
+        action="INFERENCE_STARTED",
+        status="success",
+        message=f"Inference started for scene {scene.scene_id}",
+    )
 
     print(f"\n[API] Inference request received: {job_id}")
     print(f"[API] Scene validated: {scene.scene_id}")
@@ -124,16 +138,34 @@ def execute_inference_job(
             height=geo["height"],
             resolution=geo["resolution"][0],
             band_count=geo["band_count"],
+            inference_time_s=perf["model_inference_time_s"],
+            total_time_s=perf["total_pipeline_time_s"],
+            peak_vram_gb=perf["peak_vram_gb"],
         )
         db.add(result_orm)
 
         # 7. Update Job Status to Completed
+        comp_utc = datetime.now(tz=timezone.utc)
         job.status = "completed"
-        job.completion_time = datetime.now(tz=timezone.utc)
+        job.completed_at = comp_utc
+        job.completion_time = comp_utc
+        job.inference_duration_s = perf["model_inference_time_s"]
+        job.total_duration_s = perf["total_pipeline_time_s"]
         job.inference_time_s = perf["model_inference_time_s"]
         job.total_time_s = perf["total_pipeline_time_s"]
         job.peak_vram_gb = perf["peak_vram_gb"]
         db.commit()
+
+        # Log INFERENCE_COMPLETED audit event
+        ProcessingHistoryRepository.log_event(
+            db=db,
+            entity_type="inference_job",
+            entity_id=job_id,
+            action="INFERENCE_COMPLETED",
+            status="success",
+            duration_s=perf["total_pipeline_time_s"],
+            message=f"Reconstruction completed in {perf['total_pipeline_time_s']:.2f}s",
+        )
 
         print("[API] Inference completed successfully")
         print(f"[API] Result stored: {result_orm.result_id}\n")
@@ -157,7 +189,17 @@ def execute_inference_job(
         log.exception("Inference execution failed for job %s: %s", job_id, exc)
         job.status = "failed"
         job.completion_time = datetime.now(tz=timezone.utc)
+        job.completed_at = datetime.now(tz=timezone.utc)
         job.error_message = str(exc)
         db.commit()
-        print(f"[API] Inference failed: {exc}\n")
+
+        # Log INFERENCE_FAILED audit event
+        ProcessingHistoryRepository.log_event(
+            db=db,
+            entity_type="inference_job",
+            entity_id=job_id,
+            action="INFERENCE_FAILED",
+            status="failed",
+            message=str(exc),
+        )
         raise

@@ -1,7 +1,7 @@
 """
 api/routes/downloads.py
 =======================
-Secure file download endpoint with path-traversal protection.
+Secure file download endpoint with path-traversal protection and audit logging.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from api.dependencies import get_db
 from api.db.models import Result
 from cloudremoval.config import get_settings
+from cloudremoval.database.repositories import ProcessingHistoryRepository
 
 router = APIRouter(tags=["Downloads"])
 
@@ -58,6 +59,16 @@ def download_file(
             status_code=404,
             detail=f"Requested {file_type} file does not exist on server.",
         )
+
+    # Log audit event
+    ProcessingHistoryRepository.log_event(
+        db=db,
+        entity_type="download",
+        entity_id=result_id,
+        action="DOWNLOAD_REQUESTED",
+        status="success",
+        message=f"Downloaded {file_type} for result {result_id}",
+    )
 
     return FileResponse(
         path=target_path,
