@@ -130,6 +130,20 @@ export const Api = {
   },
 
   /**
+   * Retrieve processing history audit trail from the database.
+   */
+  async getHistory(limit = 50) {
+    try {
+      const res = await fetch(`${API_BASE}/history?limit=${limit}`);
+      if (!res.ok) throw new Error(`History request failed: ${res.statusText}`);
+      return await res.json();
+    } catch (err) {
+      console.error('[API] getHistory error:', err);
+      return { total_count: 0, events: [] };
+    }
+  },
+
+  /**
    * Helper URL generators for image previews and downloads.
    */
   getScenePreviewUrl(sceneId, modality = 's2') {

@@ -19,13 +19,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   Inference.init();
   await Scenes.init();
   await Metrics.init();
+  await loadHistoryTable();
 
   // 2. Bind Navigation Tabs
   const navTabs = document.querySelectorAll('.nav-tab');
   navTabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
+    tab.addEventListener('click', async () => {
       const tabId = tab.dataset.tab;
       UI.switchTab(tabId);
+      if (tabId === 'history') {
+        await loadHistoryTable();
+      }
     });
   });
 
@@ -92,5 +96,43 @@ async function updateSystemHealth() {
   } catch (err) {
     if (apiStatusDot) apiStatusDot.className = 'status-dot error';
     if (apiStatusText) apiStatusText.textContent = 'Connection Error';
+  }
+}
+
+/**
+ * Load live audit events into the Processing History table.
+ */
+export async function loadHistoryTable() {
+  const tbody = document.getElementById('history-table-body');
+  if (!tbody) return;
+
+  try {
+    const data = await Api.getHistory(50);
+    const events = data.events || [];
+
+    if (events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-tertiary);">No audit events recorded yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    events.forEach((ev) => {
+      const tr = document.createElement('tr');
+      const timeStr = ev.created_at ? new Date(ev.created_at).toLocaleTimeString() : '—';
+      const durationStr = ev.duration_s ? `${ev.duration_s.toFixed(2)}s` : '—';
+      const statusColor = ev.status === 'success' ? 'var(--accent-emerald)' : 'var(--accent-crimson)';
+
+      tr.innerHTML = `
+        <td style="font-family: var(--font-mono); font-size: 11px;">#${ev.id}</td>
+        <td><span class="badge-tag">${ev.entity_type}</span></td>
+        <td><code style="font-size: 11px; color: var(--text-cyan);">${ev.entity_id}</code></td>
+        <td><code style="font-size: 11px;">${ev.action}</code></td>
+        <td><span style="color: ${statusColor}; font-weight: 600;">● ${ev.status.toUpperCase()}</span></td>
+        <td style="font-family: var(--font-mono); font-size: 11px;">${durationStr} (${timeStr})</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.warn('Could not load history table:', err);
   }
 }

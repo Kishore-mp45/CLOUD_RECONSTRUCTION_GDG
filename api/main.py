@@ -1,7 +1,7 @@
 """
 api/main.py
 ===========
-FastAPI application entry point for ALLClear Cloud Removal System (Phase 8 & 10).
+FastAPI application entry point for ALLClear Cloud Removal System (Phases 8, 10 & 11).
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ from api.routes import (
     metrics_router,
     models_router,
     downloads_router,
+    history_router,
 )
 from cloudremoval.config import get_settings
 
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics_router)
     app.include_router(models_router)
     app.include_router(downloads_router)
+    app.include_router(history_router)
 
     # Mount Static Frontend
     frontend_dir = _PROJECT_ROOT / "frontend"
