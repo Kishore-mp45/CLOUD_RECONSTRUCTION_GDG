@@ -1,0 +1,98 @@
+# ============================================================
+# .gitignore — SAR-Optical Cloud Removal Platform
+# ============================================================
+
+# --- Python & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+MANIFEST
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+.Python
+
+# --- Environment & Secrets (Never commit credentials) ---
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.token
+credentials.json
+
+# --- Model Checkpoints & Weights (Never commit heavy weights) ---
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.onnx
+*.safetensors
+
+# --- Datasets & Geospatial Rasters (Never commit large rasters) ---
+allclear_dataset/
+allclear_test_metadata.json
+*.tif
+*.tiff
+*.geotiff
+*.img
+*.nc
+*.hdf5
+
+# --- Local Outputs, Logs & Cache ---
+logs/
+outputs/
+data/
+*.log
+
+# --- Local Databases ---
+*.sqlite
+*.sqlite3
+*.db
+
+# --- IDE & OS Files ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Testing & Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# --- Type Checking & Linters ---
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+.ruff_cache/
+
+# --- Jupyter Notebooks Checkpoints ---
+.ipynb_checkpoints/
+
+# --- Temporary Files ---
+*.tmp
+*.bak
+*.swp
+*~

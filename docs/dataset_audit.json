@@ -1,0 +1,119 @@
+{
+    "environment": {
+        "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+        "os": "nt"
+    },
+    "gpu": {
+        "nvidia-smi": "AVAILABLE",
+        "name": "NVIDIA GeForce RTX 4060 Laptop GPU"
+    },
+    "cuda": {
+        "nvcc": "FAILED: [WinError 2] The system cannot find the file specified",
+        "status": "READY"
+    },
+    "pytorch": {
+        "version": "2.5.1+cu121",
+        "cuda_version": "12.1",
+        "cuda_is_available": true,
+        "device_count": 1,
+        "tensor_test": "SUCCESS"
+    },
+    "dependencies": {
+        "rasterio": "INSTALLED",
+        "osgeo.gdal": "MISSING",
+        "numpy": "INSTALLED",
+        "scipy": "MISSING",
+        "tifffile": "MISSING",
+        "pyproj": "MISSING",
+        "shapely": "MISSING",
+        "geopandas": "MISSING",
+        "xarray": "MISSING",
+        "rioxarray": "MISSING"
+    },
+    "dataset": {
+        "rois": 3698,
+        "s2_files": 14792,
+        "s1_files": 4608
+    },
+    "metadata": {
+        "record_count": 3698
+    },
+    "sentinel2": {},
+    "sentinel1": {},
+    "targets": {
+        "target_count": 3698
+    },
+    "pairing": {
+        "status": "TRAINING RELATIONSHIP AMBIGUOUS - target and input dates differ"
+    },
+    "temporal_matching": {
+        "status": "AMBIGUOUS - Dates must be parsed from manifest keys and paths"
+    },
+    "geospatial": {},
+    "geotiff": {
+        "s2_sample_path": "allclear_dataset\\roi100011\\2022_3\\s2_toa\\roi100011_s2_toa_2022_3_28_median.tif",
+        "s2_crs": "EPSG:32722",
+        "s2_width": 308,
+        "s2_height": 308,
+        "s2_bands": 13,
+        "s2_dtypes": [
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64",
+            "float64"
+        ],
+        "s2_descriptions": [
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "B7",
+            "B8",
+            "B8A",
+            "B9",
+            "B10",
+            "B11",
+            "B12"
+        ],
+        "s2_transform": "| 10.00, 0.00, 566500.00|\n| 0.00,-10.00, 7535360.00|\n| 0.00, 0.00, 1.00|",
+        "s1_sample_path": "allclear_dataset\\roi100663\\2022_9\\s1\\roi100663_s1_2022_9_13_median.tif",
+        "s1_crs": "EPSG:32755",
+        "s1_width": 313,
+        "s1_height": 313,
+        "s1_bands": 2,
+        "s1_dtypes": [
+            "float64",
+            "float64"
+        ],
+        "s1_descriptions": [
+            "VV",
+            "VH"
+        ],
+        "s1_transform": "| 10.00, 0.00, 801040.00|\n| 0.00,-10.00, 7532590.00|\n| 0.00, 0.00, 1.00|"
+    },
+    "data_quality": {
+        "status": "INSPECTED"
+    },
+    "missing_data": {
+        "missing_s1": 1203,
+        "missing_s2": 0
+    },
+    "earth_engine": {
+        "considerations": "Earth Engine not implemented in Phase 0. Future integration will require downloading S1/S2 collections, matching CRS/resolution to this dataset, and applying DSen2-CR on the fly."
+    },
+    "recommendations": {
+        "phase1": "1. Establish exact dataset loaders reading from allclear_test_metadata.json. 2. Handle missing S1 inputs. 3. Normalize S1 and S2 inputs."
+    },
+    "phase0_status": ""
+}

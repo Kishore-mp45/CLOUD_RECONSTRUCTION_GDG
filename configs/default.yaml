@@ -1,0 +1,122 @@
+# ============================================================
+# cloudremoval — default configuration
+# ============================================================
+# Values here serve as documentation and baseline defaults.
+# Override via environment variables or a .env file.
+# ============================================================
+
+# ------------------------------------------------------------------
+# Model Architecture (DSen2-CR — Modified, no cloud mask input)
+# ------------------------------------------------------------------
+model:
+  name: "DSen2CR"                 # Model identifier
+  s2_input_bands: 13              # Sentinel-2 TOA bands (B1–B12 incl. B8A)
+  s1_input_bands: 2               # Sentinel-1 bands (VV, VH)
+  # total input channels = s2_input_bands + s1_input_bands = 15
+  total_input_channels: 15
+  target_bands: 13                # Reconstructed Sentinel-2 bands
+  num_filters: 256                # Feature channels in residual blocks
+  num_res_blocks: 16              # Number of residual blocks
+  # Note: cloud-mask input is DISABLED (no cloud mask used)
+  use_cloud_mask: false
+
+# ------------------------------------------------------------------
+# Training (Phase 2+ — DO NOT change MAX_EPOCHS above 30)
+# ------------------------------------------------------------------
+training:
+  max_epochs: 30                  # LOCKED — do not exceed
+  batch_size: 4                   # Tune for RTX 4060 8 GB VRAM
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-5
+  val_freq: 1                     # Validate every N epochs
+  amp: true                       # Automatic Mixed Precision (AMP)
+  gradient_clip_norm: 1.0
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+  missing_s1_strategy: "skip"    # "skip" | "zeros"
+  loss:
+    name: "MAELoss"               # Main reconstruction loss
+    perceptual_weight: 0.0        # Disabled until Phase 2 decision
+
+# ------------------------------------------------------------------
+# Checkpointing
+# ------------------------------------------------------------------
+checkpointing:
+  save_every_epoch: true
+  keep_last_n: 3                  # Keep last 3 checkpoints + best
+  best_metric: "psnr"             # Metric used to select best checkpoint
+  best_mode: "max"                # "max" = higher is better
+
+# ------------------------------------------------------------------
+# Inference (Phase 3+ — frontend never triggers retraining)
+# ------------------------------------------------------------------
+inference:
+  best_checkpoint_name: "best_model.pth"
+  tile_size: null                  # null = process full image; set int for tiling
+  overlap: 64                      # Tile overlap in pixels (if tiling enabled)
+
+# ------------------------------------------------------------------
+# Preprocessing (Phase 2)
+# ------------------------------------------------------------------
+preprocessing:
+  # Path prefix used in the ALLClear metadata JSON (Linux cluster paths)
+  scratch_prefix: "/scratch/allclear/dataset_v3/dataset_30k_v4/"
+
+  # Use all 3 S2 observations per metadata record as separate triplets
+  # (each paired with the same S1 + target). Set false to use only s2_toa[0].
+  use_all_s2_inputs: true
+
+  # Patch extraction
+  patch_size: 256              # pixels (square)
+  stride: 128                  # pixels; gives ~4 patches per 310×310 image
+
+  # Quality thresholds
+  max_nodata_frac: 0.05        # reject patch if >5% nodata / non-finite pixels
+
+  # Scene-level split ratios (sum must equal 1.0)
+  train_ratio: 0.80
+  val_ratio: 0.10
+  test_ratio: 0.10
+
+  # Reproducibility
+  seed: 42
+
+  # Normalization statistics: computed from this many randomly sampled
+  # training triplets (0 = use all training triplets, slow)
+  norm_sample_size: 500
+  norm_version: "v1"
+
+  # Maximum patches per ROI (null = no limit; set an integer to cap)
+  max_patches_per_roi: null
+
+# ------------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------------
+logging:
+  level: "INFO"
+  log_file: "cloudremoval.log"
+  max_bytes: 10485760             # 10 MB
+  backup_count: 5
+
+# ------------------------------------------------------------------
+# API (Phase 3+)
+# ------------------------------------------------------------------
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  max_upload_size_mb: 512
+
+# ------------------------------------------------------------------
+# Earth Engine (Future — Phase 4+)
+# ------------------------------------------------------------------
+earth_engine:
+  # Earth Engine integration is NOT implemented.
+  # This section documents future requirements only.
+  enabled: false
+  collection_s2: "COPERNICUS/S2_SR_HARMONIZED"
+  collection_s1: "COPERNICUS/S1_GRD"
+  cloud_filter_pct: 80           # Max scene cloud % for S2 query
+  scale_m: 10                    # Spatial resolution in metres
+  crs: "EPSG:4326"
