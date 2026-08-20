@@ -124,13 +124,16 @@ export const Viewer = {
 
     const sliderContainer = document.getElementById('split-slider-container');
     const panelsGrid = document.getElementById('panels-grid-container');
+    const comparisonStatus = document.getElementById('comparison-status');
 
     if (mode === 'slider') {
       if (sliderContainer) sliderContainer.style.display = 'block';
       if (panelsGrid) panelsGrid.style.display = 'none';
+      if (comparisonStatus) comparisonStatus.style.display = 'flex';
       this.updateSliderUI();
     } else {
       if (sliderContainer) sliderContainer.style.display = 'none';
+      if (comparisonStatus) comparisonStatus.style.display = 'none';
       if (panelsGrid) {
         panelsGrid.style.display = 'grid';
         if (mode === '3panel') {
@@ -169,6 +172,11 @@ export const Viewer = {
     if (cloudyPanelImg) cloudyPanelImg.src = cloudyUrl;
     if (reconPanelImg) reconPanelImg.src = cloudyUrl;
 
+    this.setComparisonStatus(
+      'Inputs ready: cloudy Sentinel-2 optical and cloud-penetrating Sentinel-1 SAR. Run reconstruction to view the model prediction.',
+      false,
+    );
+
     // Reset processing state
     this.hideProcessingOverlay();
   },
@@ -197,6 +205,19 @@ export const Viewer = {
     // Reset slider to 50% for immediate dramatic comparison
     this.sliderPosition = 50.0;
     this.updateSliderUI();
+
+    this.setComparisonStatus(
+      'Model prediction complete. This live scene has no clear-sky target, so this is a visual comparison—not a per-scene accuracy score.',
+      true,
+    );
+  },
+
+  setComparisonStatus(message, completed) {
+    const status = document.getElementById('comparison-status');
+    if (!status) return;
+    status.classList.toggle('completed', completed);
+    const text = status.querySelector('span:last-child');
+    if (text) text.textContent = message;
   },
 
   /**

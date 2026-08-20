@@ -44,6 +44,38 @@ export const Scenes = {
         this.applyFilterAndRender();
       });
     }
+
+    const fetchButton = document.getElementById('fetch-live-btn');
+    if (fetchButton) {
+      fetchButton.addEventListener('click', () => this.fetchLiveScene());
+    }
+  },
+
+  async fetchLiveScene() {
+    const location = document.getElementById('live-location-input')?.value.trim();
+    const acquisitionDate = document.getElementById('live-date-input')?.value;
+    const message = document.getElementById('live-fetch-message');
+    const button = document.getElementById('fetch-live-btn');
+    if (!location || !acquisitionDate) {
+      if (message) message.textContent = 'Enter a location and date first.';
+      return;
+    }
+    try {
+      if (button) button.disabled = true;
+      if (message) message.textContent = 'Finding matching optical and radar imagery…';
+      const response = await Api.fetchLiveScene(location, acquisitionDate);
+      const scene = response.scene;
+      this.allScenes = [scene, ...this.allScenes.filter((s) => s.scene_id !== scene.scene_id)];
+      this.applyFilterAndRender();
+      await this.selectScene(scene.scene_id);
+      if (message) message.textContent = 'Live imagery is ready. Create a cloud-free view to compare it.';
+      UI.showToast('Live imagery fetched successfully.', 'success');
+    } catch (error) {
+      if (message) message.textContent = error.message;
+      UI.showToast(error.message, 'error');
+    } finally {
+      if (button) button.disabled = false;
+    }
   },
 
   /**
@@ -60,12 +92,12 @@ export const Scenes = {
       this.allScenes = response.scenes || [];
       this.applyFilterAndRender();
 
-      // Automatically select the first eligible scene if none selected
-      const firstEligible = this.allScenes.find(
-        (s) => s.cloud_density_percent >= this.currentThreshold
-      );
-      if (firstEligible) {
-        this.selectScene(firstEligible.scene_id);
+      // Choose the clearest eligible scene for a strong first impression.
+      const featuredScene = [...this.allScenes]
+        .filter((s) => s.cloud_density_percent >= this.currentThreshold)
+        .sort((a, b) => a.cloud_density_percent - b.cloud_density_percent)[0];
+      if (featuredScene) {
+        this.selectScene(featuredScene.scene_id);
       }
     } catch (err) {
       console.error('Failed to load scenes:', err);
@@ -116,7 +148,7 @@ export const Scenes = {
     if (filtered.length === 0) {
       listContainer.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-icon">Search</div>
           <h4>No scenes found</h4>
           <p>Try lowering the search term or adjusting filters.</p>
         </div>
@@ -142,13 +174,13 @@ export const Scenes = {
         <div class="scene-item-top">
           <div class="scene-item-id" title="${scene.scene_id}">${scene.scene_id}</div>
           <div class="density-badge ${badgeClass}">
-            <span>☁</span> ${scene.cloud_density_percent.toFixed(1)}%
+            ${scene.cloud_density_percent.toFixed(1)}% cloud
           </div>
         </div>
         <div class="scene-item-bottom">
-          <span>📍 ${scene.roi_id}</span>
-          <span>📅 ${scene.acquisition_time || '2022'}</span>
-          <span>${isEligible ? '✅ PASS' : '❌ FILTER'}</span>
+          <span>${scene.roi_id}</span>
+          <span>${scene.acquisition_time || '2022'}</span>
+          <span>${isEligible ? 'Ready' : 'Unavailable'}</span>
         </div>
       `;
 
@@ -206,38 +238,23 @@ export const Scenes = {
     if (!summaryContainer) return;
 
     summaryContainer.innerHTML = `
+      <div class="scene-source-label">${scene.source_provider === 'Google Earth Engine' ? 'Live fetched scene' : 'Dataset scene'}</div>
       <div class="meta-grid-2col">
         <div class="meta-item">
-          <span class="meta-label">Scene ID</span>
+          <span class="meta-label">Selected image</span>
           <span class="meta-val" title="${scene.scene_id}">${scene.scene_id}</span>
         </div>
         <div class="meta-item">
-          <span class="meta-label">Acquisition</span>
+          <span class="meta-label">Date captured</span>
           <span class="meta-val">${scene.acquisition_time || '2022-06-15'}</span>
         </div>
         <div class="meta-item">
-          <span class="meta-label">Cloud Density</span>
+          <span class="meta-label">Cloud cover</span>
           <span class="meta-val" style="color: var(--accent-amber);">${scene.cloud_density_percent.toFixed(1)}%</span>
         </div>
         <div class="meta-item">
-          <span class="meta-label">ROI Region</span>
+          <span class="meta-label">Location</span>
           <span class="meta-val">${scene.roi_id}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">CRS / Grid</span>
-          <span class="meta-val">${scene.crs || 'EPSG:32643'}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Resolution</span>
-          <span class="meta-val">${scene.resolution ? `${scene.resolution}m` : '10.0m'}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">S2 Optical</span>
-          <span class="meta-val" style="color: var(--accent-emerald);">13 Bands (Ready)</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">S1 SAR</span>
-          <span class="meta-val" style="color: var(--accent-cyan);">VV + VH (Ready)</span>
         </div>
       </div>
     `;

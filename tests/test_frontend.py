@@ -30,9 +30,9 @@ class TestFrontendStaticServing:
         """Verify index.html is served cleanly at root /."""
         response = client.get("/")
         assert response.status_code == 200
-        assert "ALLClear" in response.text
-        assert "Cloud Scene Selector" in response.text
-        assert "Split Slider" in response.text
+        assert "ClearView" in response.text
+        assert "Choose an image" in response.text
+        assert "Compare before & after" in response.text
 
     def test_get_css_assets(self, client: TestClient) -> None:
         """Verify CSS assets load with correct content type."""

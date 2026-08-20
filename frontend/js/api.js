@@ -143,6 +143,18 @@ export const Api = {
     }
   },
 
+  /** Fetch a new Sentinel-1/Sentinel-2 pair through Earth Engine. */
+  async fetchLiveScene(location, acquisitionDate) {
+    const res = await fetch(`${API_BASE}/live/fetch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location, acquisition_date: acquisitionDate }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.detail || 'Could not fetch live imagery.');
+    return payload;
+  },
+
   /**
    * Helper URL generators for image previews and downloads.
    */

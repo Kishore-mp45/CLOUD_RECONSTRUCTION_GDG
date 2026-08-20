@@ -35,6 +35,7 @@ from api.routes import (
     models_router,
     downloads_router,
     history_router,
+    live_router,
 )
 from cloudremoval.config import get_settings
 
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(models_router)
     app.include_router(downloads_router)
     app.include_router(history_router)
+    app.include_router(live_router)
 
     # Mount Static Frontend
     frontend_dir = _PROJECT_ROOT / "frontend"

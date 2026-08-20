@@ -49,7 +49,7 @@ export const Metrics = {
         if (maeVal) maeVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
         if (rmseVal) rmseVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
         if (disclaimer) {
-          disclaimer.textContent = 'Ground-truth clear-sky optical target is unavailable for this live scene. Reference metrics (PSNR/SSIM) are omitted.';
+          disclaimer.textContent = 'LIVE RESULT: no clear-sky ground truth is available, so PSNR, SSIM, MAE and RMSE are not computed for this scene. India benchmark figures below are dataset-level reference only.';
         }
       }
     } catch (err) {
@@ -78,14 +78,14 @@ export const Metrics = {
       if (evalGrid) {
         evalGrid.innerHTML = `
           <div class="metric-stat-box">
-            <span class="stat-label">Test PSNR (Median)</span>
+            <span class="stat-label">India held-out benchmark PSNR (median)</span>
             <div class="stat-value" style="color: var(--accent-cyan);">${psnrMedian.toFixed(2)} <span class="stat-unit">dB</span></div>
-            <span style="font-size: 10px; color: var(--text-tertiary);">Mean: ${psnrMean.toFixed(2)} dB</span>
+            <span style="font-size: 10px; color: var(--text-tertiary);">30 patches · mean: ${psnrMean.toFixed(2)} dB</span>
           </div>
           <div class="metric-stat-box">
-            <span class="stat-label">Test SSIM (Median)</span>
+            <span class="stat-label">India held-out benchmark SSIM (median)</span>
             <div class="stat-value" style="color: var(--accent-teal);">${ssimMedian.toFixed(3)}</div>
-            <span style="font-size: 10px; color: var(--text-tertiary);">Mean: ${ssimMean.toFixed(3)}</span>
+            <span style="font-size: 10px; color: var(--text-tertiary);">30 patches · mean: ${ssimMean.toFixed(3)}</span>
           </div>
           <div class="metric-stat-box">
             <span class="stat-label">Test MAE (Median)</span>

@@ -20,6 +20,7 @@ class SceneSummary(BaseModel):
     has_s2: bool = True
     has_s1: bool = True
     has_target: bool = False
+    source_provider: str = "ALLClear"
 
 
 class SceneDetail(BaseModel):
@@ -36,6 +37,7 @@ class SceneDetail(BaseModel):
     s2_available: bool = True
     s1_available: bool = True
     target_available: bool = False
+    source_provider: str = "ALLClear"
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 

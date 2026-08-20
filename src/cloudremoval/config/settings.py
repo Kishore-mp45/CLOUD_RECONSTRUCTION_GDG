@@ -156,6 +156,17 @@ class Settings(BaseSettings):
     API_DEBUG: bool = Field(default=False, description="Enable FastAPI debug mode.")
 
     # ------------------------------------------------------------------
+    # Google Earth Engine (optional live-data integration)
+    # ------------------------------------------------------------------
+    EARTH_ENGINE_PROJECT: str | None = Field(
+        default=None,
+        description="Google Cloud project used to initialise the Earth Engine API.",
+    )
+    EARTH_ENGINE_OUTPUT_SUBDIR: str = Field(
+        default="live", description="Subdirectory inside OUTPUT_DIR for live downloads."
+    )
+
+    # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------
     @field_validator("DEVICE")

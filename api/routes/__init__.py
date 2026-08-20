@@ -12,6 +12,7 @@ from api.routes.metrics import router as metrics_router
 from api.routes.models import router as models_router
 from api.routes.downloads import router as downloads_router
 from api.routes.history import router as history_router
+from api.routes.live import router as live_router
 
 __all__ = [
     "health_router",
@@ -22,4 +23,5 @@ __all__ = [
     "models_router",
     "downloads_router",
     "history_router",
+    "live_router",
 ]

@@ -40,6 +40,7 @@ def to_rgb_numpy(
     rgb_indices: Tuple[int, int, int] = RGB_INDICES,
     p_low: float = 2.0,
     p_high: float = 98.0,
+    shared_stretch: bool = True,
 ) -> np.ndarray:
     """Convert a 13-channel Sentinel-2 tensor to a normalized (H, W, 3) RGB numpy array.
 
@@ -73,21 +74,100 @@ def to_rgb_numpy(
 
     rgb = np.stack([r, g, b], axis=-1)  # (H, W, 3)
 
-    # Robust percentile stretching per channel for clear visualization
-    rgb_out = np.zeros_like(rgb, dtype=np.float32)
-    for c in range(3):
-        ch = rgb[..., c]
-        valid = ch[np.isfinite(ch)]
-        if len(valid) == 0:
-            continue
-        vmin = np.percentile(valid, p_low)
-        vmax = np.percentile(valid, p_high)
-        if vmax > vmin:
-            rgb_out[..., c] = np.clip((ch - vmin) / (vmax - vmin), 0.0, 1.0)
-        else:
-            rgb_out[..., c] = np.clip(ch, 0.0, 1.0)
+    # Use one RGB stretch by default. Per-channel normalization changes the
+    # inter-band relationships and can create false cyan/magenta colours,
+    # especially for a low-contrast model prediction.
+    valid = rgb[np.isfinite(rgb)]
+    if valid.size == 0:
+        return np.zeros_like(rgb, dtype=np.float32)
+    if shared_stretch:
+        vmin, vmax = np.percentile(valid, (p_low, p_high))
+        rgb_out = np.clip((rgb - vmin) / (vmax - vmin), 0.0, 1.0) if vmax > vmin else np.zeros_like(rgb)
+    else:
+        rgb_out = np.zeros_like(rgb, dtype=np.float32)
+        for c in range(3):
+            ch = rgb[..., c]
+            finite = ch[np.isfinite(ch)]
+            if finite.size:
+                vmin, vmax = np.percentile(finite, (p_low, p_high))
+                if vmax > vmin:
+                    rgb_out[..., c] = np.clip((ch - vmin) / (vmax - vmin), 0.0, 1.0)
 
-    return np.nan_to_num(rgb_out, nan=0.0)
+    return np.nan_to_num(rgb_out, nan=0.0).astype(np.float32)
+
+
+def reconstruction_to_rgb_numpy(
+    tensor: torch.Tensor,
+    rgb_indices: Tuple[int, int, int] = RGB_INDICES,
+) -> np.ndarray:
+    """Create a legible, display-only RGB preview of a model reconstruction.
+
+    The checkpoint stores physical reflectance values and is never changed here.
+    Its three visible channels can nevertheless have a small global colour bias.
+    A bounded gray-world correction and a tiny median filter remove that display
+    bias/speckle before a shared RGB contrast stretch.  This function is for a
+    PNG preview only; GeoTIFF downloads remain the unmodified model output.
+    """
+    if isinstance(tensor, torch.Tensor):
+        arr = tensor.detach().cpu().float().numpy()
+    else:
+        arr = np.asarray(tensor, dtype=np.float32)
+    if arr.ndim == 3 and arr.shape[0] != 13 and arr.shape[-1] == 13:
+        arr = np.moveaxis(arr, -1, 0)
+
+    rgb = np.stack([arr[i] for i in rgb_indices], axis=-1).astype(np.float32)
+    finite = np.isfinite(rgb)
+    if not finite.any():
+        return np.zeros_like(rgb, dtype=np.float32)
+
+    medians = np.array([np.nanmedian(rgb[..., i]) for i in range(3)], dtype=np.float32)
+    target = float(np.nanmedian(medians))
+    gains = np.clip(target / np.maximum(medians, 1e-6), 0.78, 1.30)
+    rgb *= gains[None, None, :]
+
+    valid = rgb[np.isfinite(rgb)]
+    lo, hi = np.percentile(valid, (1.0, 99.0))
+    preview = np.clip((rgb - lo) / max(hi - lo, 1e-6), 0.0, 1.0)
+
+    # Keep the subtle model texture, while suppressing isolated colour speckle.
+    try:
+        from scipy.ndimage import median_filter, zoom
+        preview = median_filter(preview, size=(3, 3, 1))
+        # Tiled inference can leave a one- to two-pixel coloured seam at the
+        # outer edge. Crop only that non-geographic display artefact, then
+        # resample back to the original preview dimensions for slider alignment.
+        if min(preview.shape[:2]) > 16:
+            core = preview[4:-4, 4:-4]
+            preview = zoom(
+                core,
+                (preview.shape[0] / core.shape[0], preview.shape[1] / core.shape[1], 1),
+                order=1,
+            )[:rgb.shape[0], :rgb.shape[1]]
+    except ImportError:  # scipy is optional for this utility
+        pass
+    luminance = preview.mean(axis=-1, keepdims=True)
+    preview = luminance + 0.82 * (preview - luminance)
+    return np.nan_to_num(preview, nan=0.0).astype(np.float32)
+
+
+def sar_to_rgb_numpy(array: np.ndarray, p_low: float = 2.0, p_high: float = 98.0) -> np.ndarray:
+    """Render VV/VH dB backscatter as a stable false-colour RGB image."""
+    arr = np.asarray(array, dtype=np.float32)
+    if arr.ndim != 3 or arr.shape[0] < 2:
+        raise ValueError(f"Expected SAR array shaped (2, H, W), got {arr.shape}")
+
+    def stretch(channel: np.ndarray) -> np.ndarray:
+        finite = channel[np.isfinite(channel)]
+        if finite.size == 0:
+            return np.zeros_like(channel, dtype=np.float32)
+        lo, hi = np.percentile(finite, (p_low, p_high))
+        return np.clip((channel - lo) / (hi - lo), 0, 1) if hi > lo else np.zeros_like(channel, dtype=np.float32)
+
+    vv, vh = stretch(arr[0]), stretch(arr[1])
+    # The normalized VV−VH contrast retains polarisation structure; division
+    # saturates nearly every pixel and made the old preview unusable.
+    contrast = stretch(arr[0] - arr[1])
+    return np.nan_to_num(np.stack((vv, vh, contrast), axis=-1), nan=0.0).astype(np.float32)
 
 
 def create_4panel_comparison(

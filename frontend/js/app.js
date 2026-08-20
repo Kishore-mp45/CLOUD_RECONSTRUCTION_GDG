@@ -74,17 +74,17 @@ async function updateSystemHealth() {
       if (apiStatusDot) apiStatusDot.className = 'status-dot online';
       if (apiStatusText) apiStatusText.textContent = 'API Online';
 
-      if (health.device && health.device.cuda_available) {
+      if (health.cuda_available) {
         if (gpuStatusDot) gpuStatusDot.className = 'status-dot online';
-        if (gpuStatusText) gpuStatusText.textContent = health.device.device_name ? `${health.device.device_name.replace('NVIDIA GeForce ', '')}` : 'GPU Ready';
+        if (gpuStatusText) gpuStatusText.textContent = health.gpu_name ? health.gpu_name.replace('NVIDIA GeForce ', '') : 'GPU Ready';
       } else {
         if (gpuStatusDot) gpuStatusDot.className = 'status-dot ready';
         if (gpuStatusText) gpuStatusText.textContent = 'CPU Mode';
       }
 
-      if (health.model && health.model.checkpoint_exists) {
+      if (health.model_checkpoint_available) {
         if (modelStatusDot) modelStatusDot.className = 'status-dot ready';
-        if (modelStatusText) modelStatusText.textContent = 'DSen2-CR Loaded';
+        if (modelStatusText) modelStatusText.textContent = 'Model ready';
       } else {
         if (modelStatusDot) modelStatusDot.className = 'status-dot busy';
         if (modelStatusText) modelStatusText.textContent = 'Model Missing';

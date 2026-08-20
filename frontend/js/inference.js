@@ -46,7 +46,7 @@ export const Inference = {
         }
         const url = Api.getDownloadUrl(this.latestResult.result_id, 'geotiff');
         window.open(url, '_blank');
-        UI.showToast('Initiated GeoTIFF download (13 Bands, EPSG:32643)', 'success');
+      UI.showToast('GeoTIFF download started.', 'success');
       });
     }
 
@@ -58,7 +58,7 @@ export const Inference = {
         }
         const url = Api.getDownloadUrl(this.latestResult.result_id, 'png');
         window.open(url, '_blank');
-        UI.showToast('Initiated high-resolution PNG preview download', 'success');
+      UI.showToast('Image preview download started.', 'success');
       });
     }
 
@@ -83,15 +83,7 @@ export const Inference = {
   async startInference() {
     const scene = Scenes.selectedScene;
     if (!scene) {
-      UI.showToast('Please select an eligible scene first.', 'warning');
-      return;
-    }
-
-    if (scene.cloud_density_percent < Scenes.currentThreshold) {
-      UI.showToast(
-        `Scene cloud density (${scene.cloud_density_percent.toFixed(1)}%) is below the configured threshold (${Scenes.currentThreshold.toFixed(1)}%). Ineligible for reconstruction.`,
-        'error'
-      );
+      UI.showToast('Choose an image first.', 'warning');
       return;
     }
 
@@ -99,7 +91,7 @@ export const Inference = {
 
     this.isProcessing = true;
     this.updateRunButtonState('PROCESSING');
-    Viewer.showProcessingOverlay('Running SAR-Optical Fusion with DSen2-CR...');
+    Viewer.showProcessingOverlay('Creating your cloud-free reconstruction…');
 
     // Start live elapsed timer
     this.startTime = performance.now();
@@ -195,17 +187,17 @@ export const Inference = {
     } else if (state === 'COMPLETED') {
       btn.disabled = false;
       btn.innerHTML = `
-        <span>✨</span> Run Cloud Removal Again
+        Create another cloud-free view
       `;
     } else if (state === 'FAILED') {
       btn.disabled = false;
       btn.innerHTML = `
-        <span>⚠️</span> Retry Reconstruction
+        Try again
       `;
     } else {
       btn.disabled = false;
       btn.innerHTML = `
-        <span>⚡</span> Run Cloud Removal
+        Create cloud-free view
       `;
     }
   },

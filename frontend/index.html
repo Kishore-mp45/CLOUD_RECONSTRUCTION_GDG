@@ -31,8 +31,8 @@
           </svg>
         </div>
         <div class="brand-title-group">
-          <h1>ALLClear Cloud Removal</h1>
-          <p>SAR + Optical Geospatial Reconstruction Platform</p>
+          <h1>ClearView</h1>
+          <p>See through cloud cover in satellite imagery</p>
         </div>
       </div>
 
@@ -58,11 +58,11 @@
     <nav class="nav-tab-bar" aria-label="Main Navigation">
       <div class="nav-tab active" data-tab="dashboard">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        Live Reconstruction & Demo
+        Cloud removal
       </div>
       <div class="nav-tab" data-tab="evaluation">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-        Model Architecture & Evaluation
+        Technical details
       </div>
       <div class="nav-tab" data-tab="history">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -78,16 +78,10 @@
       <!-- HERO CONTEXT BANNER -->
       <section class="hero-banner">
         <div class="hero-text">
-          <h2>Satellite Cloud Penetration & Optical Reconstruction</h2>
+          <h2>Clouds hide the ground. Compare what the model recovers.</h2>
           <p>
-            Recovering cloud-obscured 13-band Sentinel-2 surface reflectance imagery using synchronized Sentinel-1 SAR (C-band radar) backscatter and a modified, SAR-supervised DSen2-CR residual network.
+            Choose a scene, create a cloud-free reconstruction, then drag the slider to compare it with the cloudy image.
           </p>
-        </div>
-        <div class="hero-badges">
-          <span class="badge-tag">🛰️ Sentinel-1 + 2</span>
-          <span class="badge-tag">🧠 DSen2-CR (15-Ch)</span>
-          <span class="badge-tag">⚡ 126ms / patch</span>
-          <span class="badge-tag">📐 10m GSD</span>
         </div>
       </section>
 
@@ -102,7 +96,7 @@
             <div class="panel-header">
               <h3>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Cloud Scene Selector
+                Choose an image
               </h3>
             </div>
             
@@ -125,9 +119,19 @@
 
               <!-- Search Bar -->
               <div class="search-wrapper">
-                <span class="search-icon">🔍</span>
                 <input type="text" class="search-input" id="scene-search-input" placeholder="Search scene ID, ROI..." aria-label="Search satellite scenes">
               </div>
+
+              <details class="live-location-card">
+                <summary>Fetch a live location</summary>
+                <p>Enter coordinates and a date to bring in new satellite data.</p>
+                <label for="live-location-input">Location</label>
+                <input type="text" id="live-location-input" placeholder="e.g. 12.9716, 77.5946">
+                <label for="live-date-input">Date</label>
+                <input type="date" id="live-date-input">
+                <button class="btn-secondary" id="fetch-live-btn" type="button">Fetch live imagery</button>
+                <p class="live-fetch-message" id="live-fetch-message"></p>
+              </details>
 
               <!-- Scrollable Scene Cards List -->
               <div class="scene-list-scroll" id="scene-list-container" role="listbox">
@@ -146,16 +150,13 @@
             <div class="panel-header">
               <h3>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-                Geospatial Imagery Workspace
+                Your before-and-after comparison
               </h3>
               
               <!-- View Mode Toggles -->
               <div class="view-mode-bar">
-                <button class="view-btn active" data-mode="slider" title="Interactive Draggable Split Slider">
-                  ↔ Split Slider
-                </button>
-                <button class="view-btn" data-mode="3panel" title="Side-by-side 3-Panel Modalities">
-                  ⊞ 3-Panel View
+                <button class="view-btn active" data-mode="slider" title="Interactive before and after comparison">
+                  Compare before & after
                 </button>
               </div>
             </div>
@@ -166,8 +167,8 @@
                 <!-- MODE 1: INTERACTIVE BEFORE / AFTER SPLIT SLIDER -->
                 <div class="split-slider-container" id="split-slider-container">
                   <!-- Labels -->
-                  <div class="split-label-pill split-label-left">Original Cloudy S2 (RGB)</div>
-                  <div class="split-label-pill split-label-right">DSen2-CR Reconstructed</div>
+                  <div class="split-label-pill split-label-left">Before · Cloudy</div>
+                  <div class="split-label-pill split-label-right">After · Cloud-free reconstruction</div>
 
                   <!-- Layer 1 (Underneath): Reconstructed Output -->
                   <div class="split-layer split-after-layer">
@@ -187,14 +188,19 @@
                   </div>
                 </div>
 
+                <div class="comparison-status" id="comparison-status" role="status">
+                  <span class="comparison-status-dot"></span>
+                  <span>Select a scene to inspect the cloudy optical and SAR inputs.</span>
+                </div>
+
                 <!-- MODE 2: 3-PANEL SIDE-BY-SIDE MODALITY GRID -->
                 <div id="panels-grid-container" class="panels-grid-3" style="display: none;">
                   <!-- Panel 1: Sentinel-1 SAR -->
                   <div class="image-panel-card">
                     <img id="panel-img-sar" src="" alt="Sentinel-1 SAR Radar Amplitude Imagery">
                     <div class="image-panel-tag">
-                      <span style="color: var(--accent-cyan);">📡 SENTINEL-1 SAR</span>
-                      <span>VV + VH C-Band</span>
+                      <span style="color: var(--accent-cyan);">RADAR VIEW</span>
+                      <span>Radar view (sees through clouds)</span>
                     </div>
                   </div>
 
@@ -202,8 +208,8 @@
                   <div class="image-panel-card">
                     <img id="panel-img-cloudy" src="" alt="Original Cloudy Sentinel-2 Optical Imagery">
                     <div class="image-panel-tag">
-                      <span style="color: var(--accent-rose);">☁ CLOUDY SENTINEL-2</span>
-                      <span>B4-B3-B2 RGB</span>
+                      <span style="color: var(--accent-rose);">BEFORE</span>
+                      <span>Cloudy satellite image</span>
                     </div>
                   </div>
 
@@ -211,8 +217,8 @@
                   <div class="image-panel-card">
                     <img id="panel-img-recon" src="" alt="DSen2-CR Reconstructed Optical Imagery">
                     <div class="image-panel-tag">
-                      <span style="color: var(--accent-emerald);">✨ RECONSTRUCTED</span>
-                      <span>DSen2-CR (13-Band)</span>
+                      <span style="color: var(--accent-emerald);">AFTER</span>
+                      <span>Cloud-free reconstruction</span>
                     </div>
                   </div>
                 </div>
@@ -235,15 +241,25 @@
             <div class="panel-header">
               <h3>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                Metrics & Controls
+                Create a clear view
               </h3>
             </div>
 
             <div class="panel-body">
+              <div class="simple-helper">
+                <strong>1. Pick an image</strong>
+                <span>2. Create a clear view</span>
+                <span>3. Drag the comparison slider</span>
+              </div>
               <!-- PRIMARY CTA: RUN INFERENCE -->
               <button class="btn-primary" id="run-inference-btn">
-                <span>⚡</span> Run Cloud Removal
+                Create cloud-free view
               </button>
+
+              <div class="benchmark-card">
+                <strong>About quality</strong>
+                <p>This selected scene has no clear-sky reference image, so live accuracy cannot be measured. Our India benchmark is <strong>38.82 dB PSNR / 0.940 SSIM</strong> on 30 held-out patches.</p>
+              </div>
 
               <!-- QUANTITATIVE RECONSTRUCTION METRICS -->
               <div class="metrics-card-grid">

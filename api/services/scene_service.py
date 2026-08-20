@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 from api.db.models import Scene
 from api.schemas.scenes import SceneSummary, SceneDetail, SceneListResponse
-from cloudremoval.evaluation.visualizer import to_rgb_numpy, RGB_INDICES
+from cloudremoval.evaluation.visualizer import to_rgb_numpy, sar_to_rgb_numpy, RGB_INDICES
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ def get_scenes(
             has_s2=bool(s.s2_path),
             has_s1=bool(s.s1_path),
             has_target=bool(s.target_path),
+            source_provider=s.source_provider,
         )
         for s in scenes_orm
     ]
@@ -93,6 +94,7 @@ def get_scene_by_id(db: Session, scene_id: str) -> Optional[SceneDetail]:
         s2_available=bool(scene.s2_path),
         s1_available=bool(scene.s1_path),
         target_available=bool(scene.target_path),
+        source_provider=scene.source_provider,
         extra=extra,
     )
 
@@ -108,7 +110,9 @@ def get_or_generate_scene_preview(db: Session, scene_id: str, modality: str = "s
 
     preview_dir = Path("outputs/previews/scenes")
     preview_dir.mkdir(parents=True, exist_ok=True)
-    out_png = preview_dir / f"{scene_id}_{modality}.png"
+    # Rendering changed in v2: never reuse previews made with the incorrect
+    # per-channel RGB/SAR-ratio display code.
+    out_png = preview_dir / f"{scene_id}_{modality}_v2.png"
 
     if out_png.exists() and out_png.stat().st_size > 1000:
         return out_png
@@ -148,14 +152,7 @@ def get_or_generate_scene_preview(db: Session, scene_id: str, modality: str = "s
                 import rasterio
                 with rasterio.open(s1_path) as src:
                     arr = src.read()  # (2, H, W) -> VV, VH
-                vv = arr[0]
-                vh = arr[1]
-                # SAR dB normalization
-                vv_norm = np.clip((vv - np.percentile(vv, 2)) / (np.percentile(vv, 98) - np.percentile(vv, 2) + 1e-6), 0, 1)
-                vh_norm = np.clip((vh - np.percentile(vh, 2)) / (np.percentile(vh, 98) - np.percentile(vh, 2) + 1e-6), 0, 1)
-                ratio = np.clip(vv_norm / (vh_norm + 1e-3), 0, 1)
-                # False color radar representation (R=VV, G=VH, B=Ratio)
-                rgb = np.stack([vv_norm, vh_norm, ratio], axis=-1)
+                rgb = sar_to_rgb_numpy(arr)
                 plt.imsave(out_png, rgb.astype(np.float32))
                 return out_png
             except Exception as e:
