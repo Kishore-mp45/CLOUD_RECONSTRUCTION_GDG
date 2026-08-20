@@ -14,7 +14,14 @@ Features:
       B4 (Red)   -> index 3
       B3 (Green) -> index 2
       B2 (Blue)  -> index 1
-  - Percentile-based contrast stretch [2%, 98%] for realistic satellite imagery rendering
+  - render_s2_rgb(): authoritative fixed-scale renderer
+    Uses a fixed reference S2 physical range so both original (cloudy)
+    and reconstructed (clear-sky) images are visually comparable on the
+    SAME absolute brightness scale. Without a fixed scale, independent
+    per-image stretch makes a dark clear-sky reconstruction look as
+    bright as a cloud-covered input - misleading.
+  - to_rgb_numpy(): per-image percentile stretch (used internally for
+    4-panel evaluation where each panel should fill its own contrast range)
   - Denormalization using dataset normalization statistics
   - Saves standalone multi-panel comparison figures with metric annotations
 """
@@ -34,20 +41,174 @@ import matplotlib.pyplot as plt
 # B1=0, B2=1 (Blue), B3=2 (Green), B4=3 (Red), B5=4, ...
 RGB_INDICES = (3, 2, 1)  # Red (B4), Green (B3), Blue (B2)
 
+# Fixed S2 TOA physical reference range for absolute-scale rendering.
+# Derived from Sentinel-2 Level-1C DN characteristics:
+#   - Min: 0 (dark pixels, shadows)
+#   - Ref_high: ~3000 DN = ~0.30 surface reflectance (typical clear land)
+#   - Soft saturation at 5000 DN (bright clouds/snow, clipped gracefully)
+# Using a fixed scale means original-cloudy and reconstructed-clear-sky
+# images are shown at the SAME absolute brightness, making them comparable.
+_S2_FIXED_LOW  = 0.0       # DN - absolute lower reference
+_S2_FIXED_HIGH = 3000.0    # DN - soft saturation reference (clips gracefully to 1.0)
+
+
+def _to_numpy_chw(tensor_or_array) -> np.ndarray:
+    """Coerce input to (C, H, W) float32 numpy array."""
+    if isinstance(tensor_or_array, torch.Tensor):
+        arr = tensor_or_array.detach().cpu().float().numpy()
+    else:
+        arr = np.asarray(tensor_or_array, dtype=np.float32)
+    # Handle (H, W, C) arrays
+    if arr.ndim == 3 and arr.shape[0] not in (13, 2) and arr.shape[2] in (13, 2):
+        arr = np.moveaxis(arr, -1, 0)
+    return arr
+
+
+def render_s2_rgb(
+    data,
+    rgb_indices: Tuple[int, int, int] = RGB_INDICES,
+    fixed_low: float = _S2_FIXED_LOW,
+    fixed_high: float = _S2_FIXED_HIGH,
+) -> np.ndarray:
+    """**Authoritative** fixed-scale Sentinel-2 true-color renderer.
+
+    This is the SINGLE function that must be used for BOTH the original
+    (cloudy) and the reconstructed (cloud-free) image previews.  Both
+    images share the same physical [fixed_low, fixed_high] reference
+    range so that brightness is visually comparable between them.
+
+    Parameters
+    ----------
+    data : array-like
+        Shape (13, H, W) or (H, W, 13), denormalized S2 reflectance DN.
+    rgb_indices : Tuple[int, int, int]
+        (R, G, B) channel indices. Default (3, 2, 1) = (B4, B3, B2).
+    fixed_low : float
+        Lower clip / black point in S2 DN units. Default 0.
+    fixed_high : float
+        Upper clip / white point in S2 DN units. Default 3000.
+        Values above this are simply clipped to white - graceful saturation.
+
+    Returns
+    -------
+    np.ndarray
+        Shape (H, W, 3), float32, range [0.0, 1.0].
+    """
+    arr = _to_numpy_chw(data)
+    r = arr[rgb_indices[0]]
+    g = arr[rgb_indices[1]]
+    b = arr[rgb_indices[2]]
+    rgb = np.stack([r, g, b], axis=-1)  # (H, W, 3)
+
+    # Replace NaN with 0 before scaling
+    rgb = np.nan_to_num(rgb, nan=0.0, posinf=fixed_high, neginf=0.0)
+
+    # Fixed-range linear scale: both images use same absolute reference
+    span = max(fixed_high - fixed_low, 1.0)
+    rgb_out = np.clip((rgb - fixed_low) / span, 0.0, 1.0)
+
+    return rgb_out.astype(np.float32)
+
+
+def apply_chromaticity_match(
+    recon_rgb: np.ndarray,
+    orig_arr: np.ndarray,
+    cloud_threshold: float = 2500.0
+) -> np.ndarray:
+    """
+    Applies contextual chromaticity matching to fix AI color hallucinations.
+    
+    The SAR-to-Optical model often hallucinates green (vegetation) in completely
+    cloud-obscured areas because of training data bias (SAR volume scattering = trees).
+    This post-processing step measures the chromaticity (color balance) of the
+    real clear-sky pixels in the image, and forces the hallucinated pixels to
+    match that color distribution, while preserving the structural luminance predicted
+    by the AI.
+    
+    Parameters
+    ----------
+    recon_rgb : np.ndarray
+        Shape (H, W, 3), float32, range [0, 1]. The rendered reconstructed RGB.
+    orig_arr : np.ndarray
+        Shape (13, H, W). The original cloudy input GeoTIFF array (DN).
+    cloud_threshold : float
+        DN threshold in the blue band (B2, idx 1) to define thick clouds.
+        
+    Returns
+    -------
+    np.ndarray
+        Shape (H, W, 3), float32, color-corrected RGB.
+    """
+    import numpy as np
+    
+    # Ensure orig_arr is (C, H, W)
+    orig = _to_numpy_chw(orig_arr)
+    if orig.shape[0] < 2:
+        return recon_rgb
+        
+    # Blue band (B2) is at index 1
+    cloud_mask = orig[1] > cloud_threshold
+    clear_mask = ~cloud_mask
+    
+    if not np.any(cloud_mask) or not np.any(clear_mask):
+        return recon_rgb
+        
+    # 1. Calculate Brightness (sum of RGB)
+    eps = 1e-6
+    recon_sum = np.sum(recon_rgb, axis=-1, keepdims=True) + eps
+    
+    # 2. Extract Chromaticity (Color fractions)
+    r_chroma = recon_rgb[:, :, 0] / recon_sum[:, :, 0]
+    g_chroma = recon_rgb[:, :, 1] / recon_sum[:, :, 0]
+    b_chroma = recon_rgb[:, :, 2] / recon_sum[:, :, 0]
+    
+    # 3. Match Chromaticity distribution (shift cloudy colors to match clear colors)
+    for chroma in [r_chroma, g_chroma, b_chroma]:
+        c_mean_clear = np.mean(chroma[clear_mask])
+        c_std_clear = np.std(chroma[clear_mask])
+        c_mean_cloudy = np.mean(chroma[cloud_mask])
+        c_std_cloudy = np.std(chroma[cloud_mask])
+        
+        # Apply shift only to cloudy pixels
+        matched = (chroma[cloud_mask] - c_mean_cloudy) * (c_std_clear / max(c_std_cloudy, 1e-5)) + c_mean_clear
+        chroma[cloud_mask] = np.clip(matched, 0.0, 1.0)
+        
+    # 4. Re-normalize chromaticity so R+G+B = 1
+    c_sum = r_chroma + g_chroma + b_chroma + eps
+    r_chroma /= c_sum
+    g_chroma /= c_sum
+    b_chroma /= c_sum
+    
+    # 5. Multiply back by the original structural brightness predicted by the AI
+    matched_rgb = np.zeros_like(recon_rgb)
+    matched_rgb[:, :, 0] = r_chroma * recon_sum[:, :, 0]
+    matched_rgb[:, :, 1] = g_chroma * recon_sum[:, :, 0]
+    matched_rgb[:, :, 2] = b_chroma * recon_sum[:, :, 0]
+    
+    return np.clip(matched_rgb, 0.0, 1.0)
+
+
 
 def to_rgb_numpy(
-    tensor: torch.Tensor,
+    tensor,
     rgb_indices: Tuple[int, int, int] = RGB_INDICES,
     p_low: float = 2.0,
     p_high: float = 98.0,
     shared_stretch: bool = True,
 ) -> np.ndarray:
-    """Convert a 13-channel Sentinel-2 tensor to a normalized (H, W, 3) RGB numpy array.
+    """Per-image percentile-stretch RGB renderer.
+
+    NOTE: For side-by-side original vs. reconstructed comparisons,
+    use ``render_s2_rgb()`` instead — it applies a fixed physical-scale
+    reference so both images are visually comparable.
+
+    This function is retained for internal 4-panel evaluation figures
+    where each panel benefits from its own full-range stretch.
 
     Parameters
     ----------
-    tensor : torch.Tensor
-        Shape (13, H, W) or (H, W, 13).
+    tensor : array-like
+        Shape (13, H, W) or (H, W, 13), denormalized S2 reflectance DN.
     rgb_indices : Tuple[int, int, int]
         Channel indices for (Red, Green, Blue). Default is (3, 2, 1).
     p_low, p_high : float
@@ -58,14 +219,7 @@ def to_rgb_numpy(
     np.ndarray
         Shape (H, W, 3), dtype float32, in range [0.0, 1.0].
     """
-    if isinstance(tensor, torch.Tensor):
-        arr = tensor.detach().cpu().float().numpy()
-    else:
-        arr = np.array(tensor, dtype=np.float32)
-
-    # Ensure shape (C, H, W)
-    if arr.ndim == 3 and arr.shape[0] != 13 and arr.shape[2] == 13:
-        arr = np.transpose(arr, (2, 0, 1))
+    arr = _to_numpy_chw(tensor)
 
     # Extract RGB channels
     r = arr[rgb_indices[0]]
@@ -97,57 +251,26 @@ def to_rgb_numpy(
 
 
 def reconstruction_to_rgb_numpy(
-    tensor: torch.Tensor,
+    tensor,
     rgb_indices: Tuple[int, int, int] = RGB_INDICES,
+    fixed_low: float = _S2_FIXED_LOW,
+    fixed_high: float = _S2_FIXED_HIGH,
 ) -> np.ndarray:
-    """Create a legible, display-only RGB preview of a model reconstruction.
+    """Fixed-scale RGB renderer for reconstructed S2 output.
 
-    The checkpoint stores physical reflectance values and is never changed here.
-    Its three visible channels can nevertheless have a small global colour bias.
-    A bounded gray-world correction and a tiny median filter remove that display
-    bias/speckle before a shared RGB contrast stretch.  This function is for a
-    PNG preview only; GeoTIFF downloads remain the unmodified model output.
+    Uses the SAME fixed physical reference range as render_s2_rgb() so
+    reconstructed imagery is visually comparable to the original input.
+    This is the function used by api/routes/results.py for browser previews.
+
+    The GeoTIFF output is NEVER modified. This function only produces
+    a display PNG.
     """
-    if isinstance(tensor, torch.Tensor):
-        arr = tensor.detach().cpu().float().numpy()
-    else:
-        arr = np.asarray(tensor, dtype=np.float32)
-    if arr.ndim == 3 and arr.shape[0] != 13 and arr.shape[-1] == 13:
-        arr = np.moveaxis(arr, -1, 0)
-
-    rgb = np.stack([arr[i] for i in rgb_indices], axis=-1).astype(np.float32)
-    finite = np.isfinite(rgb)
-    if not finite.any():
-        return np.zeros_like(rgb, dtype=np.float32)
-
-    medians = np.array([np.nanmedian(rgb[..., i]) for i in range(3)], dtype=np.float32)
-    target = float(np.nanmedian(medians))
-    gains = np.clip(target / np.maximum(medians, 1e-6), 0.78, 1.30)
-    rgb *= gains[None, None, :]
-
-    valid = rgb[np.isfinite(rgb)]
-    lo, hi = np.percentile(valid, (1.0, 99.0))
-    preview = np.clip((rgb - lo) / max(hi - lo, 1e-6), 0.0, 1.0)
-
-    # Keep the subtle model texture, while suppressing isolated colour speckle.
-    try:
-        from scipy.ndimage import median_filter, zoom
-        preview = median_filter(preview, size=(3, 3, 1))
-        # Tiled inference can leave a one- to two-pixel coloured seam at the
-        # outer edge. Crop only that non-geographic display artefact, then
-        # resample back to the original preview dimensions for slider alignment.
-        if min(preview.shape[:2]) > 16:
-            core = preview[4:-4, 4:-4]
-            preview = zoom(
-                core,
-                (preview.shape[0] / core.shape[0], preview.shape[1] / core.shape[1], 1),
-                order=1,
-            )[:rgb.shape[0], :rgb.shape[1]]
-    except ImportError:  # scipy is optional for this utility
-        pass
-    luminance = preview.mean(axis=-1, keepdims=True)
-    preview = luminance + 0.82 * (preview - luminance)
-    return np.nan_to_num(preview, nan=0.0).astype(np.float32)
+    return render_s2_rgb(
+        data=tensor,
+        rgb_indices=rgb_indices,
+        fixed_low=fixed_low,
+        fixed_high=fixed_high,
+    )
 
 
 def sar_to_rgb_numpy(array: np.ndarray, p_low: float = 2.0, p_high: float = 98.0) -> np.ndarray:

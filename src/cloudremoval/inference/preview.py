@@ -11,6 +11,12 @@ Strict Band Ordering:
   - B4 (Red)   -> index 3
   - B3 (Green) -> index 2
   - B2 (Blue)  -> index 1
+
+IMPORTANT: Both original and reconstructed panels use render_s2_rgb() with
+a FIXED physical reference scale [0, 3000 DN] so they are visually comparable.
+The cloudy input (bright, ~5000 DN mean) correctly appears bright/white/saturated
+and the reconstructed clear-sky surface (~700-1500 DN) correctly appears at its
+actual lower reflectance level. This is the correct scientific representation.
 """
 
 from __future__ import annotations
@@ -22,7 +28,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from cloudremoval.evaluation.visualizer import to_rgb_numpy, RGB_INDICES
+from cloudremoval.evaluation.visualizer import render_s2_rgb, RGB_INDICES
 
 
 def create_inference_preview(
@@ -34,12 +40,15 @@ def create_inference_preview(
 ) -> Path:
     """Create a side-by-side true-color PNG preview of cloudy input vs reconstructed output.
 
+    Both panels use render_s2_rgb() with an identical fixed physical reference
+    scale so brightness is visually comparable (same absolute DN range).
+
     Parameters
     ----------
     cloudy_s2 : np.ndarray
-        Shape (13, H, W), raw surface reflectance.
+        Shape (13, H, W), raw surface reflectance DN.
     reconstructed_s2 : np.ndarray
-        Shape (13, H, W), reconstructed surface reflectance.
+        Shape (13, H, W), reconstructed surface reflectance DN.
     output_png_path : Path
         Destination PNG path.
     job_id : str
@@ -55,8 +64,9 @@ def create_inference_preview(
     output_png_path = Path(output_png_path)
     output_png_path.parent.mkdir(parents=True, exist_ok=True)
 
-    rgb_cloudy = to_rgb_numpy(cloudy_s2, rgb_indices=RGB_INDICES)
-    rgb_recon  = to_rgb_numpy(reconstructed_s2, rgb_indices=RGB_INDICES)
+    # Use fixed-scale render so both panels share the same physical reference.
+    rgb_cloudy = render_s2_rgb(cloudy_s2, rgb_indices=RGB_INDICES)
+    rgb_recon  = render_s2_rgb(reconstructed_s2, rgb_indices=RGB_INDICES)
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 7), dpi=150)
     fig.patch.set_facecolor("#181818")
@@ -68,7 +78,7 @@ def create_inference_preview(
 
     # Right: Reconstructed Output
     axes[1].imshow(rgb_recon)
-    axes[1].set_title("DSen2-CR Reconstructed Sentinel-2 (RGB: B4-B3-B2)", color="#00ffcc", fontsize=12, fontweight="bold", pad=10)
+    axes[1].set_title("DSen2-CR Reconstructed (RGB: B4-B3-B2)", color="#00ffcc", fontsize=12, fontweight="bold", pad=10)
     axes[1].axis("off")
 
     # Subtitle with metadata

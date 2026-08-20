@@ -16,10 +16,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from api.dependencies import get_db
-from api.db.models import InferenceJob, Result
+from api.db.models import InferenceJob, Result, Scene
 from api.schemas.results import ResultResponse
 from api.services.scene_service import get_or_generate_scene_preview
-from cloudremoval.evaluation.visualizer import reconstruction_to_rgb_numpy, RGB_INDICES
+from cloudremoval.evaluation.visualizer import render_s2_rgb, apply_chromaticity_match, RGB_INDICES
 
 router = APIRouter(prefix="/results", tags=["Results"])
 
@@ -88,10 +88,10 @@ def get_result_preview_image(
         return FileResponse(p, media_type="image/png", filename=f"{res.scene_id}_cloudy.png")
 
     elif modality == "reconstructed":
-        # v5 uses bounded colour balance, despeckling, and edge-seam removal
-        # for the browser PNG.
-        # It never changes the numerical reconstruction GeoTIFF.
-        out_recon_png = Path(res.preview_png_path).parent / f"{res.job_id}_reconstructed_rgb_v5.png"
+        # v7: applies fixed physical-scale render_s2_rgb AND Chromaticity matching
+        # to remove the green hallucination bias under thick clouds.
+        # Never changes the numerical reconstruction GeoTIFF.
+        out_recon_png = Path(res.preview_png_path).parent / f"{res.job_id}_reconstructed_rgb_v7.png"
         if out_recon_png.exists() and out_recon_png.stat().st_size > 1000:
             return FileResponse(out_recon_png, media_type="image/png", filename=f"{res.result_id}_reconstructed.png")
 
@@ -102,11 +102,22 @@ def get_result_preview_image(
                 import rasterio
                 with rasterio.open(gtiff_path) as src:
                     arr = src.read()
-                rgb = reconstruction_to_rgb_numpy(arr, rgb_indices=RGB_INDICES)
+                
+                rgb = render_s2_rgb(arr, rgb_indices=RGB_INDICES)
+                
+                # Apply Chromaticity Match if original image is available
+                scene = db.query(Scene).filter(Scene.scene_id == res.scene_id).first()
+                if scene and scene.s2_path and Path(scene.s2_path).exists():
+                    with rasterio.open(scene.s2_path) as orig_src:
+                        orig_arr = orig_src.read()
+                    rgb = apply_chromaticity_match(rgb, orig_arr)
+                    
                 plt.imsave(out_recon_png, rgb)
                 return FileResponse(out_recon_png, media_type="image/png", filename=f"{res.result_id}_reconstructed.png")
-            except Exception:
-                pass
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"[API ERROR] Error in chromaticity match or PNG save: {e}")
 
         # Fallback to scene target or clean RGB
         p = get_or_generate_scene_preview(db=db, scene_id=res.scene_id, modality="target")

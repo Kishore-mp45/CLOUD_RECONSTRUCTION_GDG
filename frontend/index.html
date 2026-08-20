@@ -167,8 +167,8 @@
                 <!-- MODE 1: INTERACTIVE BEFORE / AFTER SPLIT SLIDER -->
                 <div class="split-slider-container" id="split-slider-container">
                   <!-- Labels -->
-                  <div class="split-label-pill split-label-left">Before · Cloudy</div>
-                  <div class="split-label-pill split-label-right">After · Cloud-free reconstruction</div>
+                  <div class="split-label-pill split-label-left" id="split-label-left">Before · Cloudy</div>
+                  <div class="split-label-pill split-label-right" id="split-label-right">After · Cloud-free reconstruction</div>
 
                   <!-- Layer 1 (Underneath): Reconstructed Output -->
                   <div class="split-layer split-after-layer">
@@ -272,12 +272,12 @@
                   <div class="stat-value" id="stat-ssim-val">—</div>
                 </div>
                 <div class="metric-stat-box">
-                  <span class="stat-label">MAE</span>
-                  <div class="stat-value" id="stat-mae-val">—</div>
+                  <span class="stat-label">SAM</span>
+                  <div class="stat-value" id="stat-sam-val">—</div>
                 </div>
                 <div class="metric-stat-box">
-                  <span class="stat-label">RMSE</span>
-                  <div class="stat-value" id="stat-rmse-val">—</div>
+                  <span class="stat-label">MAE / RMSE</span>
+                  <div class="stat-value" id="stat-mae-rmse-val">—</div>
                 </div>
               </div>
 
@@ -348,6 +348,32 @@
               <p style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px;">
                 Evaluated across independent test ROIs in India containing cloud-obscured Sentinel-2 and clear-sky targets.
               </p>
+            </div>
+          </div>
+
+          <!-- Evaluation Protocol -->
+          <div class="panel-card" style="grid-column: span 2;">
+            <div class="panel-header" style="border-bottom: none; padding-bottom: 0;">
+              <h3 style="font-size: 15px; font-weight: 600;">
+                Evaluation Protocol
+              </h3>
+            </div>
+            <div class="panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding-top: 12px;">
+              <div>
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-weight: 500; font-size: 14px; color: var(--text-secondary);">Metrics</h4>
+                <ul style="list-style-type: none; padding-left: 0; margin: 0; line-height: 2.0; font-size: 13px; color: var(--text-secondary);">
+                  <li><span style="color: var(--text-primary);">• </span><span style="color: var(--accent-cyan);">PSNR</span> — Peak Signal-to-Noise Ratio (dB, higher is better)</li>
+                  <li><span style="color: var(--text-primary);">• </span><span style="color: var(--accent-emerald);">SSIM</span> — Structural Similarity Index (0–1, higher is better)</li>
+                  <li><span style="color: var(--text-primary);">• </span><span style="color: var(--accent-amber);">SAM</span> — Spectral Angle Mapper (degrees, lower is better)</li>
+                  <li><span style="color: var(--text-primary);">• </span><span style="color: #94a3b8;">MAE / RMSE</span> — Pixel error magnitude (lower is better)</li>
+                </ul>
+              </div>
+              <div>
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-weight: 500; font-size: 14px; color: var(--text-secondary);">Datasets</h4>
+                <p style="margin: 0; line-height: 1.7; font-size: 13px; color: var(--text-secondary);">
+                  Evaluation is stratified across land-cover types (urban, agricultural, forest) and monsoon cloud conditions (20–70% coverage) to reflect real operational scenarios for Indian subcontinent observations.
+                </p>
+              </div>
             </div>
           </div>
 

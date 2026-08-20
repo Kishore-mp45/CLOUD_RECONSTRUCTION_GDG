@@ -22,8 +22,8 @@ export const Metrics = {
   async onInferenceCompleted(result) {
     const psnrVal = document.getElementById('stat-psnr-val');
     const ssimVal = document.getElementById('stat-ssim-val');
-    const maeVal = document.getElementById('stat-mae-val');
-    const rmseVal = document.getElementById('stat-rmse-val');
+    const samVal = document.getElementById('stat-sam-val');
+    const maeRmseVal = document.getElementById('stat-mae-rmse-val');
     const latencyVal = document.getElementById('stat-latency-val');
     const disclaimer = document.getElementById('metrics-disclaimer-text');
 
@@ -37,8 +37,8 @@ export const Metrics = {
       if (metricsData && metricsData.available) {
         if (psnrVal) psnrVal.innerHTML = `${metricsData.psnr.toFixed(2)} <span class="stat-unit">dB</span>`;
         if (ssimVal) ssimVal.innerHTML = `${metricsData.ssim.toFixed(4)}`;
-        if (maeVal) maeVal.innerHTML = `${metricsData.mae.toFixed(4)}`;
-        if (rmseVal) rmseVal.innerHTML = `${metricsData.rmse.toFixed(4)}`;
+        if (samVal) samVal.innerHTML = `${metricsData.sam.toFixed(2)}&deg;`;
+        if (maeRmseVal) maeRmseVal.innerHTML = `${metricsData.mae.toFixed(4)} <span style="font-size:14px; opacity:0.5;">/</span> ${metricsData.rmse.toFixed(4)}`;
         if (disclaimer) {
           disclaimer.textContent = 'Evaluation computed against co-registered clear-sky ground-truth target.';
         }
@@ -46,8 +46,8 @@ export const Metrics = {
         // Ground truth is not available for this live scene
         if (psnrVal) psnrVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
         if (ssimVal) ssimVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
-        if (maeVal) maeVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
-        if (rmseVal) rmseVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
+        if (samVal) samVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
+        if (maeRmseVal) maeRmseVal.innerHTML = `N/A <span class="stat-unit">(Live)</span>`;
         if (disclaimer) {
           disclaimer.textContent = 'LIVE RESULT: no clear-sky ground truth is available, so PSNR, SSIM, MAE and RMSE are not computed for this scene. India benchmark figures below are dataset-level reference only.';
         }
@@ -73,6 +73,7 @@ export const Metrics = {
       const ssimMedian = bench.summary_statistics?.ssim?.median || 0.94;
       const maeMedian = bench.summary_statistics?.mae?.median || 0.082;
       const rmseMedian = bench.summary_statistics?.rmse?.median || 0.115;
+      const samMedian = bench.summary_statistics?.sam?.median || 9.85;
 
       const evalGrid = document.getElementById('evaluation-stats-grid');
       if (evalGrid) {
@@ -88,13 +89,13 @@ export const Metrics = {
             <span style="font-size: 10px; color: var(--text-tertiary);">30 patches · mean: ${ssimMean.toFixed(3)}</span>
           </div>
           <div class="metric-stat-box">
-            <span class="stat-label">Test MAE (Median)</span>
-            <div class="stat-value" style="color: var(--accent-amber);">${maeMedian.toFixed(4)}</div>
-            <span style="font-size: 10px; color: var(--text-tertiary);">Normalized Range [0, 1]</span>
+            <span class="stat-label">Test SAM (Median)</span>
+            <div class="stat-value" style="color: var(--accent-amber);">${samMedian.toFixed(2)}&deg;</div>
+            <span style="font-size: 10px; color: var(--text-tertiary);">Spectral Angle Mapper</span>
           </div>
           <div class="metric-stat-box">
-            <span class="stat-label">Test RMSE (Median)</span>
-            <div class="stat-value" style="color: var(--accent-rose);">${rmseMedian.toFixed(4)}</div>
+            <span class="stat-label">Test MAE / RMSE (Median)</span>
+            <div class="stat-value" style="color: var(--text-secondary);">${maeMedian.toFixed(4)} <span style="font-size:14px; opacity:0.5;">/</span> ${rmseMedian.toFixed(4)}</div>
             <span style="font-size: 10px; color: var(--text-tertiary);">Normalized Range [0, 1]</span>
           </div>
         `;

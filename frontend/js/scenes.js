@@ -159,7 +159,8 @@ export const Scenes = {
     listContainer.innerHTML = '';
 
     filtered.forEach((scene) => {
-      const isEligible = scene.cloud_density_percent >= this.currentThreshold;
+      const isLive = scene.scene_id.startsWith('live_') || scene.source_provider === 'Google Earth Engine';
+      const isEligible = isLive || scene.cloud_density_percent >= this.currentThreshold;
       const isSelected = this.selectedScene && this.selectedScene.scene_id === scene.scene_id;
 
       const card = document.createElement('div');
@@ -216,7 +217,8 @@ export const Scenes = {
       Viewer.onSceneSelected(sceneDetail);
 
       // Enable/Disable Reconstruct Button based on threshold eligibility
-      const isEligible = sceneDetail.cloud_density_percent >= this.currentThreshold;
+      const isLive = sceneDetail.scene_id.startsWith('live_') || sceneDetail.source_provider === 'Google Earth Engine';
+      const isEligible = isLive || sceneDetail.cloud_density_percent >= this.currentThreshold;
       const btn = document.getElementById('run-inference-btn');
       if (btn) {
         btn.disabled = !isEligible;

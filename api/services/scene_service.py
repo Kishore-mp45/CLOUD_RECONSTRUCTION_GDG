@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 from api.db.models import Scene
 from api.schemas.scenes import SceneSummary, SceneDetail, SceneListResponse
-from cloudremoval.evaluation.visualizer import to_rgb_numpy, sar_to_rgb_numpy, RGB_INDICES
+from cloudremoval.evaluation.visualizer import render_s2_rgb, sar_to_rgb_numpy, RGB_INDICES
 
 log = logging.getLogger(__name__)
 
@@ -110,9 +110,10 @@ def get_or_generate_scene_preview(db: Session, scene_id: str, modality: str = "s
 
     preview_dir = Path("outputs/previews/scenes")
     preview_dir.mkdir(parents=True, exist_ok=True)
-    # Rendering changed in v2: never reuse previews made with the incorrect
-    # per-channel RGB/SAR-ratio display code.
-    out_png = preview_dir / f"{scene_id}_{modality}_v2.png"
+    # Rendering changed in v3: never reuse previews made with the incorrect
+    # per-channel RGB/SAR-ratio display code, or the per-image percentile stretch.
+    # We now use the authoritative fixed physical scale for all optical data.
+    out_png = preview_dir / f"{scene_id}_{modality}_v3.png"
 
     if out_png.exists() and out_png.stat().st_size > 1000:
         return out_png
@@ -126,7 +127,7 @@ def get_or_generate_scene_preview(db: Session, scene_id: str, modality: str = "s
                 import rasterio
                 with rasterio.open(s2_path) as src:
                     arr = src.read()  # (13, H, W)
-                rgb = to_rgb_numpy(arr, rgb_indices=RGB_INDICES)
+                rgb = render_s2_rgb(arr, rgb_indices=RGB_INDICES)
                 plt.imsave(out_png, rgb)
                 return out_png
             except Exception as e:
@@ -178,7 +179,7 @@ def get_or_generate_scene_preview(db: Session, scene_id: str, modality: str = "s
                 import rasterio
                 with rasterio.open(target_path) as src:
                     arr = src.read()
-                rgb = to_rgb_numpy(arr, rgb_indices=RGB_INDICES)
+                rgb = render_s2_rgb(arr, rgb_indices=RGB_INDICES)
                 plt.imsave(out_png, rgb)
                 return out_png
             except Exception as e:

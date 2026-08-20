@@ -160,8 +160,15 @@ export const Viewer = {
     const splitAfterImg = document.getElementById('split-after-img');
 
     if (splitBeforeImg) splitBeforeImg.src = cloudyUrl;
-    // Set placeholder until reconstruction runs
-    if (splitAfterImg) splitAfterImg.src = cloudyUrl;
+    // Set placeholder to SAR until reconstruction runs
+    if (splitAfterImg) splitAfterImg.src = sarUrl;
+
+    const rightLabel = document.getElementById('split-label-right');
+    if (rightLabel) {
+      rightLabel.innerHTML = 'Input &middot; Sentinel-1 SAR';
+      rightLabel.style.backgroundColor = 'rgba(6, 182, 212, 0.8)'; // cyan matching SAR theme
+      rightLabel.style.color = '#fff';
+    }
 
     // Update 3-Panel Images
     const sarPanelImg = document.getElementById('panel-img-sar');
@@ -197,6 +204,13 @@ export const Viewer = {
 
     if (splitBeforeImg) splitBeforeImg.src = cloudyUrl;
     if (splitAfterImg) splitAfterImg.src = reconUrl;
+
+    const rightLabel = document.getElementById('split-label-right');
+    if (rightLabel) {
+      rightLabel.innerHTML = 'After &middot; Cloud-free reconstruction';
+      rightLabel.style.backgroundColor = ''; // Reset to CSS default
+      rightLabel.style.color = '';
+    }
 
     // Update 3-Panel Reconstructed Image
     const reconPanelImg = document.getElementById('panel-img-recon');
